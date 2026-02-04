@@ -1,7 +1,6 @@
-version: "3.8"
-
 services:
   db:
+    platform: linux/amd64
     image: mysql:8.0
     container_name: flight_db
     environment:
@@ -10,13 +9,21 @@ services:
       MYSQL_USER: user
       MYSQL_PASSWORD: root1234
     ports:
-      - "3306:3306"
+      - "3307:3306"  # Changed to 3307
     volumes:
       - db_data:/var/lib/mysql
       - ./flight.sql:/docker-entrypoint-initdb.d/flight.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   app:
-    build: .
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: flight_app
     ports:
       - "8080:8080"
@@ -25,7 +32,9 @@ services:
       SPRING_DATASOURCE_USERNAME: user
       SPRING_DATASOURCE_PASSWORD: root1234
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    restart: on-failure
 
 volumes:
   db_data:
